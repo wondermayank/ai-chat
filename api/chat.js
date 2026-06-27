@@ -1,10 +1,16 @@
 export default async function handler(req, res) {
-  // ── CORS ──
-  res.setHeader('Access-Control-Allow-Origin', 'https://chat.thunderstudy.indevs.in');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  // ── CORS — wildcard so any origin (preview URLs, custom domain) reaches the API ──
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // GET → health check — open /api/chat in browser to confirm function is live
+  if (req.method === 'GET') {
+    return res.status(200).json({ status: 'ThunderAI API is running ⚡', method: 'POST to send messages' });
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // ── INPUT VALIDATION ──
