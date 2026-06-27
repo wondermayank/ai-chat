@@ -1,12 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ThunderAI — Free AI study mentor for CUET, Banking, and Class 11-12 Commerce. Powered by ThunderStudy.">
+<meta name="theme-color" content="#6366F1">
+<meta property="og:title" content="ThunderAI — Your Study Mentor">
+<meta property="og:description" content="Free AI assistant for CUET, IBPS, SBI PO, and Commerce students by ThunderStudy.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://chat.thunderstudy.indevs.in">
   <link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/tiny.svg">
 <link rel="shortcut icon" href="https://wondermayank.github.io/tiny.svg">
-<title>ThunderAI — Tiny</title>
+<title>ThunderAI — Your Study Mentor</title>
   <link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
@@ -449,7 +454,7 @@
     <div class="topbar">
       <div class="model-pill">
         <div class="model-dot"></div>
-        <span class="model-name">ThunderAI · Tiny</span>
+        <span class="model-name">ThunderAI · Llama 3.3</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#8B8FA8" stroke-width="2" stroke-linecap="round"/></svg>
       </div>
       <div class="topbar-right">
@@ -502,7 +507,7 @@
           </div>
         </div>
         <div class="input-note">
-          Powered by <strong>Tiny</strong> &nbsp;·&nbsp;
+          Powered by <strong>Groq · Llama 3.3 70B</strong> &nbsp;·&nbsp;
           <a href="https://commercesehoga.github.io" target="_blank">ThunderStudy</a> by
           <a href="https://wondermayank.github.io" target="_blank">Wondermayank</a>
         </div>
@@ -719,16 +724,29 @@ function hideWelcome() { if(!welcomeHidden){welcomeHidden=true;document.getEleme
 
 function parseMarkdown(text) {
   let s = escapeHtml(text);
+  // Code blocks first (preserve whitespace)
+  s = s.replace(/```[^\n]*\n?([\s\S]*?)```/g, (_, code) =>
+    `<pre style="background:var(--accent-light);border:1px solid var(--border);border-radius:8px;padding:10px 14px;overflow-x:auto;font-size:0.8rem;margin:6px 0;font-family:monospace;color:var(--text);">${code.trimEnd()}</pre>`);
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, '<code style="background:var(--accent-light);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.82rem;">$1</code>');
+  // Bold / italic / headings
   s = s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
   s = s.replace(/\*(.*?)\*/g,'<em>$1</em>');
   s = s.replace(/^### (.+)$/gm,'<h3>$1</h3>');
   s = s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+  // Links
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // Numbered lists
+  s = s.replace(/(^\d+\. .+(\n|$))+/gm, function(block){
+    const items=block.trim().split('\n').map(l=>'<li>'+l.replace(/^\d+\. /,'')+'</li>').join('');
+    return '<ol style="padding-left:18px;margin:5px 0;">'+items+'</ol>';
+  });
+  // Bullet lists
   s = s.replace(/(^- .+(\n|$))+/gm,function(block){
     const items=block.trim().split('\n').map(l=>'<li>'+l.replace(/^- /,'')+'</li>').join('');
     return '<ul>'+items+'</ul>';
   });
-  s = s.split(/\n\n+/).map(p=>{p=p.trim();if(!p)return '';if(/^<[hul]/.test(p))return p;return '<p>'+p.replace(/\n/g,'<br>')+'</p>';}).join('');
+  s = s.split(/\n\n+/).map(p=>{p=p.trim();if(!p)return '';if(/^<[hulo]|^<pre/.test(p))return p;return '<p>'+p.replace(/\n/g,'<br>')+'</p>';}).join('');
   return s;
 }
 
@@ -848,7 +866,7 @@ async function sendMessage() {
     if (systemAddition && apiMessages.length > 0) {
       apiMessages = [...messages.slice(0,-1), { role:'user', content: messages[messages.length-1].content + systemAddition }];
     }
-    const res = await fetch('https://thunderstudyai.vercel.app/api/chat', {
+    const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ messages: apiMessages })
     });
@@ -856,6 +874,7 @@ async function sendMessage() {
     removeTyping();
     if (data.error) {
       const e=document.createElement('div');e.className='error-bubble';e.textContent='⚠️ '+data.error;chatWrap.appendChild(e);
+      chatWrap.scrollTop=chatWrap.scrollHeight;
     } else {
       appendMessage('ai', data.reply, modeLabel);
       messages.push({ role:'assistant', content:data.reply });
@@ -864,7 +883,8 @@ async function sendMessage() {
     }
   } catch(err) {
     removeTyping();
-    const e=document.createElement('div');e.className='error-bubble';e.textContent='⚠️ Connection error. Please try again.';chatWrap.appendChild(e);
+    const e=document.createElement('div');e.className='error-bubble';e.textContent='⚠️ Connection error — please try again.';chatWrap.appendChild(e);
+    chatWrap.scrollTop=chatWrap.scrollHeight;
   }
   sendBtn.disabled = false;
   chatWrap.scrollTop=chatWrap.scrollHeight;
