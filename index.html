@@ -175,6 +175,35 @@
   .model-pill:hover{border-color:var(--accent-mid);background:var(--accent-light);}
   .model-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
   .model-name{font-size:0.78rem;font-weight:600;color:var(--text);}
+
+  /* MODEL PICKER */
+  .model-pill .model-caret{transition:transform .2s;}
+  .model-pill.open .model-caret{transform:rotate(180deg);}
+  .model-chip{border-color:var(--accent-mid);color:var(--accent);background:var(--accent-light);font-weight:600;}
+  .model-chip .model-dot{width:7px;height:7px;}
+  .model-menu{
+    position:fixed;z-index:900;width:300px;max-width:92vw;padding:8px;
+    background:rgba(255,255,255,0.97);backdrop-filter:blur(14px);
+    border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);
+    opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;
+    transition:opacity .18s,transform .18s;
+  }
+  .model-menu.show{opacity:1;transform:none;pointer-events:all;}
+  .model-menu-title{font-size:0.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;}
+  .model-opt{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:11px;
+    cursor:pointer;transition:background .15s;border:1.5px solid transparent;
+  }
+  .model-opt:hover{background:var(--accent-light);}
+  .model-opt.active{background:var(--accent-light);border-color:var(--accent-mid);}
+  .model-opt .mo-icon{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .model-opt .mo-text{flex:1;min-width:0;}
+  .model-opt .mo-name{font-size:0.82rem;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
+  .model-opt .mo-desc{font-size:0.7rem;color:var(--text-muted);margin-top:1px;line-height:1.35;}
+  .model-opt .mo-badge{font-size:0.58rem;font-weight:700;padding:2px 6px;border-radius:8px;background:var(--accent);color:#fff;letter-spacing:.03em;}
+  .model-opt .mo-check{width:16px;height:16px;flex-shrink:0;opacity:0;}
+  .model-opt.active .mo-check{opacity:1;}
+  .model-note{font-size:0.68rem;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);}
   .topbar-right{display:flex;align-items:center;gap:8px;}
   .topbar-badge{
     display:flex;align-items:center;gap:5px;
@@ -452,10 +481,10 @@
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
-      <div class="model-pill">
+      <div class="model-pill" id="modelPill" onclick="toggleModelMenu(event, this)" title="Choose AI model">
         <div class="model-dot"></div>
-        <span class="model-name">ThunderAI · Llama 3.3</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#8B8FA8" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="model-name" id="modelPillName">ThunderAI · Tiny</span>
+        <svg class="model-caret" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#8B8FA8" stroke-width="2" stroke-linecap="round"/></svg>
       </div>
       <div class="topbar-right">
         <div class="topbar-badge"><div class="status-dot"></div><span>Online</span></div>
@@ -496,6 +525,10 @@
           </button>
         </div>
         <div class="mode-chips-row">
+          <div class="mode-chip model-chip" id="modelChip" onclick="toggleModelMenu(event, this)" title="Choose AI model">
+            <div class="model-dot"></div><span id="modelChipName">Tiny</span>
+            <svg class="model-caret" width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </div>
           <div class="mode-chip" id="chip-reasoning" onclick="toggleMode('reasoning')">
             🔍 Reasoning <span class="token-cost">2×</span>
           </div>
@@ -507,7 +540,7 @@
           </div>
         </div>
         <div class="input-note">
-          Powered by <strong>Groq · Llama 3.3 70B</strong> &nbsp;·&nbsp;
+          Powered by <strong id="poweredBy">Groq · GPT OSS 120B</strong> &nbsp;·&nbsp;
           <a href="https://commercesehoga.github.io" target="_blank">ThunderStudy</a> by
           <a href="https://wondermayank.github.io" target="_blank">Wondermayank</a>
         </div>
@@ -516,11 +549,26 @@
   </div>
 </div>
 
+<div class="model-menu" id="modelMenu" role="listbox" aria-label="AI model"></div>
+
 <script>
 // ── CONSTANTS ──
 const MAX_MESSAGES = 10;
 const MAX_HISTORY = 4;
-const SK = { name:'tai_username', history:'tai_history', daily:'tai_daily' };
+const SK = { name:'tai_username', history:'tai_history', daily:'tai_daily', model:'tai_model' };
+
+// ── MODELS (keys must match MODELS in functions/api/chat.js) ──
+const MODELS = [
+  { key:'tiny',      label:'Tiny',          powered:'Groq · GPT OSS 120B',    badge:'Best',
+    desc:'Smartest answers. GPT OSS 120B, best for exams and tough topics.', c1:'#6366F1', c2:'#A78BFA' },
+  { key:'tiny-lite', label:'Tiny Lite',     powered:'Groq · GPT OSS 20B',
+    desc:'Fast and smart. GPT OSS 20B, great for everyday questions.',        c1:'#3B82F6', c2:'#60A5FA' },
+  { key:'llama-70b', label:'Llama 3.3 70B', powered:'Groq · Llama 3.3 70B',
+    desc:'Meta Llama 70B. Balanced, natural Hinglish replies.',              c1:'#8B5CF6', c2:'#C4B5FD' },
+  { key:'llama-8b',  label:'Llama 3.1 8B',  powered:'Groq · Llama 3.1 8B',
+    desc:'Instant replies for quick, simple doubts.',                        c1:'#0EA5E9', c2:'#B9D9DC' },
+];
+const DEFAULT_MODEL = 'tiny';
 
 // Perchance image API — free, no key needed
 const IMG_API = 'https://image.pollinations.ai/prompt/';
@@ -532,6 +580,59 @@ let welcomeHidden = false;
 let allHistory = [];
 let currentSessionId = Date.now().toString();
 let activeMode = null; // 'reasoning' | 'image' | 'deep' | null
+let selectedModel = MODELS.some(m => m.key === localStorage.getItem(SK.model)) ? localStorage.getItem(SK.model) : DEFAULT_MODEL;
+
+// ── MODEL PICKER ──
+function getModel(key) { return MODELS.find(m => m.key === key) || MODELS[0]; }
+
+function renderModelUI() {
+  const m = getModel(selectedModel);
+  document.getElementById('modelPillName').textContent = 'ThunderAI · ' + m.label;
+  document.getElementById('modelChipName').textContent = m.label;
+  document.getElementById('poweredBy').textContent = m.powered;
+  const menu = document.getElementById('modelMenu');
+  menu.innerHTML = '<div class="model-menu-title">Choose AI model</div>' + MODELS.map(o => `
+    <div class="model-opt ${o.key === selectedModel ? 'active' : ''}" role="option" onclick="selectModel('${o.key}')">
+      <div class="mo-icon" style="background:linear-gradient(135deg,${o.c1},${o.c2})">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg>
+      </div>
+      <div class="mo-text">
+        <div class="mo-name">${o.label}${o.badge ? '<span class="mo-badge">' + o.badge + '</span>' : ''}</div>
+        <div class="mo-desc">${o.desc}</div>
+      </div>
+      <svg class="mo-check" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#6366F1" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>`).join('');
+}
+
+function toggleModelMenu(ev, anchor) {
+  ev.stopPropagation();
+  const menu = document.getElementById('modelMenu');
+  if (menu.classList.contains('show') && menu._anchor === anchor) { closeModelMenu(); return; }
+  menu._anchor = anchor;
+  document.querySelectorAll('.model-pill,.model-chip').forEach(el => el.classList.remove('open'));
+  anchor.classList.add('open');
+  menu.classList.add('show');
+  const r = anchor.getBoundingClientRect();
+  const h = menu.offsetHeight, w = menu.offsetWidth;
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+  const below = r.bottom + 8 + h <= window.innerHeight;
+  menu.style.left = left + 'px';
+  menu.style.top = (below ? r.bottom + 8 : Math.max(8, r.top - h - 8)) + 'px';
+}
+function closeModelMenu() {
+  document.getElementById('modelMenu').classList.remove('show');
+  document.querySelectorAll('.model-pill,.model-chip').forEach(el => el.classList.remove('open'));
+}
+function selectModel(key) {
+  selectedModel = key;
+  localStorage.setItem(SK.model, key);
+  renderModelUI();
+  closeModelMenu();
+}
+document.addEventListener('click', e => { if (!e.target.closest('#modelMenu')) closeModelMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModelMenu(); });
+window.addEventListener('resize', closeModelMenu);
+
 
 // ── INIT ──
 function init() {
@@ -751,7 +852,7 @@ function parseMarkdown(text) {
 }
 
 // ── APPEND MESSAGE ──
-function appendMessage(role, content, modeLabel) {
+function appendMessage(role, content, modeLabel, note) {
   const chatWrap = document.getElementById('chatWrap');
   const div = document.createElement('div');
   div.className = 'message '+role;
@@ -796,6 +897,12 @@ function appendMessage(role, content, modeLabel) {
   const inner = document.createElement('div');
   inner.innerHTML = role==='ai' ? parseMarkdown(content) : '<p>'+escapeHtml(content)+'</p>';
   bubble.appendChild(inner);
+  if (note) {
+    const n = document.createElement('div');
+    n.className = 'model-note';
+    n.textContent = note;
+    bubble.appendChild(n);
+  }
   div.appendChild(avatar);
   div.appendChild(bubble);
   chatWrap.appendChild(div);
@@ -868,7 +975,7 @@ async function sendMessage() {
     }
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ messages: apiMessages })
+      body: JSON.stringify({ messages: apiMessages, model: selectedModel, mode: activeMode })
     });
     const data = await res.json();
     removeTyping();
@@ -876,7 +983,8 @@ async function sendMessage() {
       const e=document.createElement('div');e.className='error-bubble';e.textContent='⚠️ '+data.error;chatWrap.appendChild(e);
       chatWrap.scrollTop=chatWrap.scrollHeight;
     } else {
-      appendMessage('ai', data.reply, modeLabel);
+      const fbNote = data.fallback ? `${getModel(selectedModel).label} was unavailable, so ${data.label} answered.` : '';
+      appendMessage('ai', data.reply, modeLabel, fbNote);
       messages.push({ role:'assistant', content:data.reply });
       spendTokens(tokenCost);
       updateCurrentSession();
@@ -908,6 +1016,7 @@ Upar quick questions pe tap karo ya neeche apna sawaal likho ⚡`);
   }, 300);
 }
 
+renderModelUI();
 init();
 </script>
 </body>
