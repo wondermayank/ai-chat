@@ -1,7 +1,7 @@
 # ThunderAI — ThunderStudy Chat Assistant
 
 AI-powered study assistant for CUET, Banking & Commerce students.
-Built with Groq + Cloudflare Pages Functions.
+Built with Cloudflare Pages Functions.
 
 ## AI models (pick from the chat box)
 
