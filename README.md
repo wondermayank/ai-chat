@@ -6,7 +6,6 @@ Built with Cloudflare Pages Functions.
 ## AI models (pick from the chat box)
 
 | Name in chat | Notes |
-|---|---|---|
 | **Tiny** (default, Best) | Highest quality answers |
 | Tiny Lite | Fast and smart |
 | bytes | Balanced |
